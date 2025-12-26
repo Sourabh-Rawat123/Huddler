@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up</title>
+    <link href="/output.css" rel="stylesheet" />
+    <style>
+        @media (max-width: 640px) {
+            .signup-container {
+                width: 95%;
+                padding: 1.5rem;
+            }
+        }
+        
+    </style>
+</head>
+
+<body class="bg-gray-50">
+    <% if (success && success.length > 0) { %>
+        <div class="flash-message flash-success">
+            <%= success %>
+        </div>
+    <% } %>
+    
+    <% if (error && error.length > 0) { %>
+        <div class="flash-message flash-error">
+            <%= error %>
+        </div>
+    <% } %>
+    <div class="min-h-screen flex items-center justify-center px-4">
+        <div class="bg-white p-8 rounded-lg shadow-md w-96 signup-container">
+            <h2 class="text-2xl font-bold mb-6 text-center">Create Account</h2>
+
+            <!-- Local Signup Form -->
+            <form action="/user/signup" method="POST">
+                <input type="text" name="username" placeholder="Username" required
+                    class="w-full px-4 py-2 border rounded mb-4">
+                <input type="email" name="email" placeholder="Email" required
+                    class="w-full px-4 py-2 border rounded mb-4">
+                <input type="password" name="password" placeholder="Password" required
+                    class="w-full px-4 py-2 border rounded mb-4">
+                <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">
+                    Sign Up
+                </button>
+            </form>
+
+            <div class="my-4 text-center text-gray-500">OR</div>
+
+            <!-- Google Sign In -->
+            <a href="/user/google"
+                class="flex items-center justify-center w-full border border-gray-300 py-2 rounded hover:bg-gray-50">
+                <img src="https://www.google.com/favicon.ico" class="w-5 h-5 mr-2">
+                Continue with Google
+            </a>
+
+            <p class="mt-4 text-center text-sm">
+                Already have an account?
+                <a href="/user/login" class="text-indigo-600 hover:underline">Login</a>
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>
