@@ -46,7 +46,7 @@ router.post("/create-room", VerifyAcessToken, validateCreateRoom, Async_handler(
         description: roomDescription || '',
         admin: Room_admin,
         participants: [Room_admin],
-        roomCode: Secret_Code(5)
+        roomCode: Secret_Code(8).toUpperCase()
     });
 
     req.flash('success', `Room "${roomName}" created successfully!`);
@@ -62,8 +62,10 @@ router.get("/join_room", VerifyAcessToken, Async_handler(async (req, res) => {
 router.post("/join-room", VerifyAcessToken, validateJoinRoom, Async_handler(async (req, res) => {
     const { room_code } = req.body;
 
-    const room = await Room.findOne({ roomCode: room_code });
-
+    const escapedCode = room_code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const room = await Room.findOne({
+        roomCode: { $regex: new RegExp(`^${escapedCode}$`, 'i') }
+    });
     if (!room) {
         req.flash('error', "Invalid room code");
         return res.redirect("/chat/join_room?error=Invalid+room+code");
@@ -136,7 +138,7 @@ router.delete("/room/:roomId", VerifyAcessToken, Async_handler(async (req, res) 
     // Delete the room
     await Room.findByIdAndDelete(room._id);
 
-    res.status(200).json("sucess", "Room deleted successfully" );
+    res.status(200).json("sucess", "Room deleted successfully");
 }));
 
 module.exports = router;

@@ -7,45 +7,54 @@ const { validateRegister, validateLogin, validateUpdateProfile } = require("../M
 const { VerifyAcessToken } = require("../MiddleWares/Auth.Middleware.js");
 const passport = require("passport");
 const bcrypt = require("bcrypt");
-let arr = [];
-///public routes 
+
+// Public routes 
 router.get("/login", Async_handler((req, res) => {
     res.render("Auth/login.ejs");
 }));
+
 router.post("/login", validateLogin, Async_handler(async (req, res) => {
     const { email, password } = req.body;
-    arr.push(password);
+
     const user = await Users.findOne({ email: email });
     if (!user) {
         throw new Api_Error(401, "Invalid Email or password");
     }
+
     const isPasswordValid = await user.Compare_Password(password);
     if (!isPasswordValid) {
         throw new Api_Error(401, "Invalid email or password");
     }
+
     const accessToken = user.Generate_Acess_Token();
     const refreshToken = user.Generate_Refresh_Token();
     user.RefreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
 
+    // Set cookies with security settings
     res.cookie("accessToken", accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production"
+        secure: process.env.NODE_ENV === "production",
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000 // 15 minutes
     });
     res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production"
+        secure: process.env.NODE_ENV === "production",
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
+
     req.flash('success', `Welcome ${user.username}`);
-    // Redirect to chat/dashboard after successful login
     res.redirect("/chat");
 }));
+
 router.get("/signup", Async_handler((req, res) => {
     res.render("Auth/signup.ejs");
 }));
+
 router.post("/signup", validateRegister, Async_handler(async (req, res) => {
     const { username, email, password } = req.body;
-    arr.push(password);
 
     let user_already_exist = await Users.findOne({ email: email });
 
@@ -58,8 +67,8 @@ router.post("/signup", validateRegister, Async_handler(async (req, res) => {
     if (!Saved_User) {
         throw new Api_Error(500, "User registration failed, please try again");
     }
-    req.flash('success', `Signup Succesfull`);
 
+    req.flash('success', `Signup Successful`);
     res.redirect("/user/login");
 }));
 // router.post("/refresh-token", refreshToken);
@@ -73,26 +82,30 @@ router.get("/google/callback",
     passport.authenticate("google", {
         failureRedirect: "/user/login"
     }),
-    (req, res) => {
+    Async_handler(async (req, res) => {
         // Generate JWT tokens for the authenticated user
         const accessToken = req.user.Generate_Acess_Token();
         const refreshToken = req.user.Generate_Refresh_Token();
 
         req.user.RefreshToken = refreshToken;
-        req.user.save({ validateBeforeSave: false });
+        await req.user.save({ validateBeforeSave: false });
 
         res.cookie("accessToken", accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production"
+            secure: process.env.NODE_ENV === "production",
+            sameSite: 'strict',
+            maxAge: 15 * 60 * 1000
         });
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production"
+            secure: process.env.NODE_ENV === "production",
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000
         });
         req.flash('success', `Welcome ${req.user.username}`);
         res.redirect("/chat");
     }
-);
+    ));
 
 // ============= PROTECTED ROUTES (Auth Required) =============
 

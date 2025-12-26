@@ -217,6 +217,9 @@ module.exports = function (io) {
                         stream: activeUsers[id]?.stream
                     }));
                     io.to(roomId).emit('update-user-list', usersInRoom);
+                     if (roomUsers[roomId].length === 0) {
+                        delete roomUsers[roomId];
+                    }
                 }
 
                 console.log(`👋 ${userInfo.username} disconnected`);

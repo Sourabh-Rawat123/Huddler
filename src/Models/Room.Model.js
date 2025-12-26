@@ -15,7 +15,8 @@ const RoomSchema = new mongoose.Schema({
   },
   participants: [{ 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User' 
+    ref: 'User',
+    index:true
   }],
   admin: { 
     type: mongoose.Schema.Types.ObjectId, 
@@ -24,7 +25,8 @@ const RoomSchema = new mongoose.Schema({
   roomCode: {
     type: String,
     unique: true,
-    required: true
+    required: true,
+    index:true
 }
 }, { timestamps: true });
 

@@ -1,5 +1,4 @@
-let sample="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^";
-
+let sample="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 function find_code(length) {
     let res=""
     for (let index = 0; index <length; index++) {

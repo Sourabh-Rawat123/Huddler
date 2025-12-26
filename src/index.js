@@ -10,10 +10,12 @@ const port = process.env.PORT || 3000;
 const server = http.createServer(app);
 
 // Initialize Socket.io
+
 const io = socketIO(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "*",
-    methods: ["GET", "POST"]
+    origin: process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? false : 'http://localhost:3000'),
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
