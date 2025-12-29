@@ -18,7 +18,7 @@ passport.deserializeUser(async (id, done) => {
 passport.use(new Google_Strategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "http://localhost:8080/user/google/callback", // Fixed path
+  callbackURL: "https://huddler.onrender.com/user/google/callback", // Fixed path
   scope: ['profile', 'email']
 }, async (accessToken, refreshToken, profile, done) => {
   try {

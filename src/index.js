@@ -26,8 +26,8 @@ require("./socket/chat.socket.js")(io);
 connectDB()
   .then(() => {
     server.listen(port, () => {
-      console.log("✅ Connection successful to port", `${port}`);
-      console.log("✅ Socket.io initialized");
+      console.log(" Connection successful to port", `${port}`);
+      console.log(" Socket.io initialized");
     });
   })
   .catch((err) => {

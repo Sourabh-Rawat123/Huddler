@@ -7,7 +7,7 @@ const RoomSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: ['public', 'private', 'direct'],
-    default: 'public'
+    default: 'private'
   },
   description: {
     type: String,
