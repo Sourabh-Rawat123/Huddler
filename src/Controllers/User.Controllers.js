@@ -28,13 +28,13 @@ module.exports.Post_login=Async_handler(async (req, res) => {
     res.cookie("accessToken", accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: 15 * 60 * 1000 // 15 minutes
     });
     res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
@@ -67,7 +67,13 @@ module.exports.get_google= passport.authenticate("google", {
      accessType: "offline",
     prompt: "consent"
 });
-module.exports.Post_google=Async_handler(async (req, res) => {
+module.exports.Post_google=Async_handler(async (req, res) => {  
+        
+        if(!req.user){
+        req.flash('error', 'Google authentication failed');
+        return res.redirect("/user/login");
+        }
+        try{
         // Generate JWT tokens for the authenticated user
         const accessToken = req.user.Generate_Acess_Token();
         const refreshToken = req.user.Generate_Refresh_Token();
@@ -78,18 +84,24 @@ module.exports.Post_google=Async_handler(async (req, res) => {
         res.cookie("accessToken", accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: 'strict',
+            sameSite: 'lax',
             maxAge: 15 * 60 * 1000
         });
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: 'strict',
+            sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
         req.flash('success', `Welcome ${req.user.username}`);
         res.redirect("/chat");
     }
+    catch(error){
+         console.error('Google OAuth error:', error);
+        req.flash('error', 'Failed to complete Google sign-in');
+        res.redirect("/user/login");
+    }
+}   
 );
 module.exports.Post_Logout= Async_handler(async (req, res) => {
     await Users.findByIdAndUpdate(req.user._id, {
