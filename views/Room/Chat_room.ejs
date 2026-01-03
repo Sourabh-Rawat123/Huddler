@@ -685,18 +685,21 @@
 
         // ========== WEBRTC ==========
         function createPeerConnection(targetSocketId) {
+            console.log(`🔗 Creating peer connection for ${targetSocketId}`);
             const pc = new RTCPeerConnection(configuration);
             peerConnections[targetSocketId] = pc;
 
             // Add local stream tracks
             if (localStream) {
                 localStream.getTracks().forEach(track => {
+                    console.log(`➕ Adding ${track.kind} track to peer connection`);
                     pc.addTrack(track, localStream);
                 });
             }
 
             // Handle incoming stream
             pc.ontrack = (event) => {
+                console.log(`📹 Received remote track from ${targetSocketId}:`, event.track.kind);
                 const [remoteStream] = event.streams;
                 updateVideoStream(targetSocketId, remoteStream);
             };
@@ -704,11 +707,24 @@
             // Handle ICE candidates
             pc.onicecandidate = (event) => {
                 if (event.candidate) {
+                    console.log(`📤 Sending ICE candidate to ${targetSocketId}`);
                     socket.emit('webrtc-ice-candidate', {
                         targetSocketId,
                         candidate: event.candidate
                     });
                 }
+            };
+
+            // Monitor connection state
+            pc.onconnectionstatechange = () => {
+                console.log(`🔌 Connection state with ${targetSocketId}: ${pc.connectionState}`);
+                if (pc.connectionState === 'failed') {
+                    console.error(`❌ Connection failed with ${targetSocketId}`);
+                }
+            };
+
+            pc.oniceconnectionstatechange = () => {
+                console.log(`🧊 ICE connection state with ${targetSocketId}: ${pc.iceConnectionState}`);
             };
 
             return pc;
@@ -735,11 +751,20 @@
         }
 
         async function startCall(targetSocketId) {
+            console.log(`📞 Starting call to socket: ${targetSocketId}`);
+
+            if (!localStream) {
+                console.error('❌ Cannot start call - no local stream');
+                return;
+            }
+
             const pc = createPeerConnection(targetSocketId);
 
             try {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
+
+                console.log(`📤 Sending offer to ${targetSocketId}`);
 
                 socket.emit('webrtc-offer', {
                     targetSocketId,
@@ -747,7 +772,7 @@
                     streamType: 'both'
                 });
             } catch (error) {
-                console.error('Error creating offer:', error);
+                console.error('❌ Error creating offer:', error);
             }
         }
 
@@ -935,13 +960,20 @@
 
         // ========== SOCKET EVENTS ==========
         socket.on('existing-users', (users) => {
+            console.log('📋 Received existing users:', users.length);
             updateUsersList(users);
 
-            // Start calls with existing users
+            // Start calls with existing users (new user initiates)
             users.forEach(user => {
                 if (user.socketId !== socket.id) {
+                    console.log(`🎬 Adding video element and starting call with ${user.username}`);
                     addVideoElement(user.socketId, user.username, null);
-                    startCall(user.socketId);
+
+                    // Delay to ensure both sides are ready
+                    setTimeout(() => {
+                        console.log(`📞 Initiating call to ${user.username}`);
+                        startCall(user.socketId);
+                    }, 1500);
                 }
             });
         });
@@ -951,18 +983,8 @@
             showNotification(`${username} joined the room`);
             addVideoElement(socketId, username, null);
 
-            // Existing users initiate call to new user
-            if (localStream) {
-                setTimeout(() => {
-                    console.log(`📞 Starting call with ${username}`);
-                    startCall(socketId);
-                }, 1000);
-            }
-        });
-
-        socket.on('user-left', ({ socketId, username }) => {
-            showNotification(`${username} left the room`);
-            removeVideoElement(socketId);
+            // Don't initiate call - wait for new user to send offer
+            // This prevents "glare" where both sides try to call each other
             if (peerConnections[socketId]) {
                 peerConnections[socketId].close();
                 delete peerConnections[socketId];
@@ -987,6 +1009,7 @@
         });
 
         socket.on('webrtc-offer', async ({ senderSocketId, offer }) => {
+            console.log(`📥 Received offer from ${senderSocketId}`);
             const pc = createPeerConnection(senderSocketId);
 
             try {
@@ -994,33 +1017,41 @@
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
 
+                console.log(`📤 Sending answer to ${senderSocketId}`);
+
                 socket.emit('webrtc-answer', {
                     targetSocketId: senderSocketId,
                     answer
                 });
             } catch (error) {
-                console.error('Error handling offer:', error);
+                console.error('❌ Error handling offer:', error);
             }
         });
 
         socket.on('webrtc-answer', async ({ senderSocketId, answer }) => {
+            console.log(`📥 Received answer from ${senderSocketId}`);
             const pc = peerConnections[senderSocketId];
             if (pc) {
                 try {
                     await pc.setRemoteDescription(new RTCSessionDescription(answer));
+                    console.log(`✅ Connection established with ${senderSocketId}`);
                 } catch (error) {
-                    console.error('Error handling answer:', error);
+                    console.error('❌ Error handling answer:', error);
                 }
+            } else {
+                console.error(`❌ No peer connection found for ${senderSocketId}`);
             }
         });
 
         socket.on('webrtc-ice-candidate', async ({ senderSocketId, candidate }) => {
+            console.log(`📥 Received ICE candidate from ${senderSocketId}`);
             const pc = peerConnections[senderSocketId];
             if (pc) {
                 try {
                     await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                    console.log(`✅ ICE candidate added for ${senderSocketId}`);
                 } catch (error) {
-                    console.error('Error adding ICE candidate:', error);
+                    console.error('❌ Error adding ICE candidate:', error);
                 }
             }
         });
