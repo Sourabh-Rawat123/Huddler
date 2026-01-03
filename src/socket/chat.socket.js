@@ -187,6 +187,51 @@ module.exports = function (io) {
             });
         });
 
+        // ========== ROOM DELETION (ADMIN ONLY) ==========
+        socket.on('end-room', async ({ roomId, adminId }) => {
+            try {
+                // Verify the user is the admin
+                const room = await Room.findById(roomId);
+                if (!room) {
+                    socket.emit('error', { message: 'Room not found' });
+                    return;
+                }
+
+                if (room.admin.toString() !== adminId) {
+                    socket.emit('error', { message: 'Only room admin can end the room' });
+                    return;
+                }
+
+                // Notify all users in the room that it's being deleted
+                io.to(roomId).emit('room-ended', {
+                    message: `Room "${room.name}" has been ended by the admin`,
+                    roomName: room.name
+                });
+
+                // Delete all messages in the room
+                await Message.deleteMany({ Room_id: roomId });
+
+                // Delete the room
+                await Room.findByIdAndDelete(roomId);
+
+                // Clean up room users tracking
+                if (roomUsers[roomId]) {
+                    delete roomUsers[roomId];
+                }
+
+                // Disconnect all users from this room
+                const socketsInRoom = await io.in(roomId).fetchSockets();
+                for (const s of socketsInRoom) {
+                    s.leave(roomId);
+                }
+
+                console.log(`🗑️ Room ${roomId} has been deleted by admin`);
+            } catch (error) {
+                console.error('Error ending room:', error);
+                socket.emit('error', { message: 'Failed to end room' });
+            }
+        });
+
         // ========== DISCONNECT ==========
         socket.on('disconnect', () => {
             const userInfo = activeUsers[socket.id];
@@ -217,7 +262,7 @@ module.exports = function (io) {
                         stream: activeUsers[id]?.stream
                     }));
                     io.to(roomId).emit('update-user-list', usersInRoom);
-                     if (roomUsers[roomId].length === 0) {
+                    if (roomUsers[roomId].length === 0) {
                         delete roomUsers[roomId];
                     }
                 }

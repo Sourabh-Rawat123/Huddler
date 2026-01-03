@@ -8,7 +8,7 @@ const { VerifyAcessToken } = require("../MiddleWares/Auth.Middleware.js");
 const { validateCreateRoom, validateJoinRoom } = require("../MiddleWares/Validation.Middleware.js");
 const ApiError = require("../Utils/Api_Error.js");
 const Secret_Code = require("../config/random_code.js");
-module.exports.Home_Page=Async_handler(async (req, res) => {
+module.exports.Home_Page = Async_handler(async (req, res) => {
     let id = req.user._id;
     let user = await User.findById(id);
     if (!user) {
@@ -27,10 +27,10 @@ module.exports.Home_Page=Async_handler(async (req, res) => {
         throw new ApiError(500, "Can not render the page");
     }
 });
-module.exports.Create_Room= Async_handler(async (req, res) => {
+module.exports.Create_Room = Async_handler(async (req, res) => {
     res.render("Room/Create_room.ejs");
 });
-module.exports.Post_Room=Async_handler(async (req, res) => {
+module.exports.Post_Room = Async_handler(async (req, res) => {
     const { roomName, roomType, roomDescription } = req.body;
     const Room_admin = req.user._id;
 
@@ -46,10 +46,10 @@ module.exports.Post_Room=Async_handler(async (req, res) => {
     req.flash('success', `Room "${roomName}" created successfully!`);
     res.redirect(`/chat/room/${room_creation._id}`);
 });
-module.exports.Get_Join_Room=Async_handler(async (req, res) => {
+module.exports.Get_Join_Room = Async_handler(async (req, res) => {
     res.render("Room/Join_room.ejs");
 });
-module.exports.Post_Join_Room= Async_handler(async (req, res) => {
+module.exports.Post_Join_Room = Async_handler(async (req, res) => {
     const { room_code } = req.body;
 
     const escapedCode = room_code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -74,7 +74,7 @@ module.exports.Post_Join_Room= Async_handler(async (req, res) => {
 
     res.redirect(`/chat/room/${room._id}`);
 });
-module.exports.Get_Chat_Room=Async_handler(async (req, res) => {
+module.exports.Get_Chat_Room = Async_handler(async (req, res) => {
     const room = await Room.findById(req.params.roomId)
         .populate('admin', 'username email')
         .populate('participants', 'username email');
@@ -106,7 +106,7 @@ module.exports.Get_Chat_Room=Async_handler(async (req, res) => {
         messages: messages
     });
 });
-module.exports.Delete_Room=Async_handler(async (req, res) => {
+module.exports.Delete_Room = Async_handler(async (req, res) => {
     const room = await Room.findById(req.params.roomId);
 
     if (!room) {
@@ -124,5 +124,5 @@ module.exports.Delete_Room=Async_handler(async (req, res) => {
     // Delete the room
     await Room.findByIdAndDelete(room._id);
 
-    res.status(200).json("sucess", "Room deleted successfully");
+    res.status(200).json({ success: true, message: "Room deleted successfully" });
 });

@@ -585,6 +585,12 @@
             // Add local video
             addVideoElement(socket.id, username, localStream, true);
 
+            // Show warning if no camera/mic access
+            if (!localStream) {
+                showNotification('⚠️ Chat-only mode: You will not be able to see or hear others without camera/microphone access');
+                console.warn('⚠️ Running in chat-only mode - no WebRTC connections will be established');
+            }
+
             // Scroll to latest message
             scrollToBottom();
 
@@ -860,10 +866,44 @@
             }
         }
 
-        leaveRoomBtn.addEventListener('click', () => {
-            if (confirm('Are you sure you want to leave the room?')) {
-                cleanup();
-                window.location.href = '/chat';
+        leaveRoomBtn.addEventListener('click', async () => {
+            const isAdmin = '<%= room.admin._id.toString() %>' === userId;
+
+            if (isAdmin) {
+                // Admin is ending the room for everyone
+                const confirmed = confirm('As the room admin, do you want to END this room for everyone? This will permanently delete the room and kick all participants.');
+                if (confirmed) {
+                    // Emit end-room event
+                    socket.emit('end-room', { roomId, adminId: userId });
+
+                    // Delete room via API
+                    try {
+                        const response = await fetch(`/chat/room/${roomId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (response.ok) {
+                            cleanup();
+                            alert('Room ended successfully.');
+                            window.location.href = '/chat';
+                        } else {
+                            const data = await response.json();
+                            alert(data.error || 'Failed to end room');
+                        }
+                    } catch (error) {
+                        console.error('Error ending room:', error);
+                        alert('Failed to end room. Please try again.');
+                    }
+                }
+            } else {
+                // Regular user just leaving
+                if (confirm('Are you sure you want to leave the room?')) {
+                    cleanup();
+                    window.location.href = '/chat';
+                }
             }
         });
 
@@ -963,6 +1003,12 @@
             console.log('📋 Received existing users:', users.length);
             updateUsersList(users);
 
+            // Only start calls if user has camera/mic access
+            if (!localStream) {
+                console.warn('⚠️ Not initiating calls - no local stream available');
+                return;
+            }
+
             // Start calls with existing users (new user initiates)
             users.forEach(user => {
                 if (user.socketId !== socket.id) {
@@ -985,7 +1031,24 @@
 
             // Don't initiate call - wait for new user to send offer
             // This prevents "glare" where both sides try to call each other
+        });
+
+        socket.on('user-left', ({ socketId, username }) => {
+            console.log(`👋 ${username || 'User'} left the room (${socketId})`);
+            showNotification(`${username || 'User'} left the room`);
+
+            // Remove video element
+            const videoElement = document.getElementById(`video-${socketId}`);
+            if (videoElement) {
+                console.log(`🗑️ Removing video element for ${socketId}`);
+                videoElement.remove();
+            } else {
+                console.warn(`⚠️ Video element not found: video-${socketId}`);
+            }
+
+            // Close and remove peer connection
             if (peerConnections[socketId]) {
+                console.log(`🔌 Closing peer connection for ${socketId}`);
                 peerConnections[socketId].close();
                 delete peerConnections[socketId];
             }
@@ -1010,6 +1073,14 @@
 
         socket.on('webrtc-offer', async ({ senderSocketId, offer }) => {
             console.log(`📥 Received offer from ${senderSocketId}`);
+
+            // Don't accept calls if user doesn't have camera/mic access
+            if (!localStream) {
+                console.warn('⚠️ Rejecting offer - no local stream (camera/mic not granted)');
+                showNotification('You need to grant camera/microphone access to participate in video calls');
+                return;
+            }
+
             const pc = createPeerConnection(senderSocketId);
 
             try {
@@ -1054,6 +1125,23 @@
                     console.error('❌ Error adding ICE candidate:', error);
                 }
             }
+        });
+
+        // ========== ROOM ENDED EVENT ==========
+        socket.on('room-ended', ({ message, roomName }) => {
+            console.log('🚫 Room has been ended by admin');
+
+            // Cleanup connections
+            cleanup();
+
+            // Show alert and redirect
+            alert(`Room "${roomName}" has been ended by the admin.`);
+            window.location.href = '/chat';
+        });
+
+        socket.on('error', ({ message }) => {
+            console.error('❌ Socket error:', message);
+            showNotification(message);
         });
 
         // ========== UTILITY FUNCTIONS ==========
