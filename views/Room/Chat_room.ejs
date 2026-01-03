@@ -574,31 +574,71 @@
 
         // Initialize
         async function init() {
-            // Join room
-            socket.emit('join-room', { roomId, username, userId });
+            console.log('🚀 Initializing chat room...');
 
-            // Setup media
+            // Setup media FIRST (this will prompt for permissions)
             await setupLocalStream();
+
+            // Join room AFTER media is ready
+            socket.emit('join-room', { roomId, username, userId });
 
             // Add local video
             addVideoElement(socket.id, username, localStream, true);
 
             // Scroll to latest message
             scrollToBottom();
+
+            console.log('✅ Initialization complete');
         }
 
         // ========== MEDIA SETUP ==========
         async function setupLocalStream() {
             try {
+                console.log('🎥 Requesting camera and microphone access...');
+
+                // Check if getUserMedia is supported
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Your browser does not support camera/microphone access. Please use Chrome, Firefox, or Edge.');
+                }
+
                 localStream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                    audio: true
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
                 });
 
+                console.log('✅ Camera and microphone access granted');
                 socket.emit('start-stream', { roomId, streamType: 'both' });
+
             } catch (error) {
-                console.error('Error accessing media devices:', error);
-                showNotification('Could not access camera/microphone');
+                console.error('❌ Media access error:', error);
+
+                let errorMessage = 'Could not access camera/microphone. ';
+
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    errorMessage += 'Permission denied. Please allow camera and microphone access in your browser settings and refresh the page.';
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                    errorMessage += 'No camera or microphone found. Please connect a device and refresh.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage += 'Camera/microphone is already in use by another application.';
+                } else if (error.name === 'OverconstrainedError') {
+                    errorMessage += 'Camera/microphone constraints could not be satisfied.';
+                } else if (error.name === 'SecurityError') {
+                    errorMessage += 'Access denied due to security. Make sure you\'re using HTTPS or localhost.';
+                } else {
+                    errorMessage += error.message || 'Unknown error occurred.';
+                }
+
+                alert(errorMessage);
+                showNotification(errorMessage);
+
+                // Still join the room but in chat-only mode
+                localStream = null;
             }
         }
 
@@ -907,9 +947,17 @@
         });
 
         socket.on('user-joined', ({ username, socketId }) => {
+            console.log(`👤 ${username} joined the room`);
             showNotification(`${username} joined the room`);
             addVideoElement(socketId, username, null);
-            setTimeout(() => startCall(socketId), 500);
+
+            // Existing users initiate call to new user
+            if (localStream) {
+                setTimeout(() => {
+                    console.log(`📞 Starting call with ${username}`);
+                    startCall(socketId);
+                }, 1000);
+            }
         });
 
         socket.on('user-left', ({ socketId, username }) => {
