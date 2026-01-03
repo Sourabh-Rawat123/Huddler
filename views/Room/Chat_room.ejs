@@ -909,6 +909,7 @@
         socket.on('user-joined', ({ username, socketId }) => {
             showNotification(`${username} joined the room`);
             addVideoElement(socketId, username, null);
+            setTimeout(() => startCall(socketId), 500);
         });
 
         socket.on('user-left', ({ socketId, username }) => {

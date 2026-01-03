@@ -49,7 +49,7 @@ module.exports = function (io) {
                     stream: activeUsers[id]?.stream
                 }));
                 socket.emit('existing-users', usersInRoom);
-
+                io.to(roomId).emit('update-user-list', usersInRoom);
                 console.log(`👤 ${username} joined room: ${roomId}`);
             } catch (error) {
                 console.error('Error in join-room:', error);
